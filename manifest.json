@@ -1,0 +1,26 @@
+{
+	"name": "Web Keybinder",
+	"description": "Add custom keyboard shortcuts for buttons",
+	"manifest_version": 3,
+	"version": "0.1",
+	"icons": {
+		"16": "icons/keybinder-16.png",
+		"48": "icons/keybinder-48.png",
+		"128": "icons/keybinder-128.png"
+	},
+
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["keybinder.js"]
+		}
+	],
+
+	"action": {
+		"default_icon": {
+			"19": "icons/keybinder-19.png",
+			"38": "icons/keybinder-38.png"
+		},
+		"default_popup": "popup/popup.html"
+	}
+}
