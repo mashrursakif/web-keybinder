@@ -51,11 +51,9 @@ function createRecordPopup() {
 	// const con = document.createElement('div');
 	// con.id = 'keybinder-record-container';
 
-	const container = addElement(
-		'div',
-		document.body,
-		'keybinder-record-container'
-	);
+	const wrapper = addElement('div', document.body, 'keybinder-record-wrapper');
+
+	const container = addElement('div', wrapper, 'keybinder-record-container');
 
 	// Record keybind
 
@@ -65,14 +63,15 @@ function createRecordPopup() {
 		'p',
 		keybindContainer,
 		'keybind-text',
-		'record-text'
+		'record-text',
+		'No keybind saved'
 	);
 	const keybindRecordButton = addElement(
 		'button',
 		keybindContainer,
 		'record-keybind-button',
 		'record-button',
-		'Start'
+		'Record'
 	);
 	keybindRecordButton.dataset.recording = 'false';
 
@@ -83,6 +82,14 @@ function createRecordPopup() {
 		e.stopPropagation();
 
 		keybindCombination = [];
+
+		if (e.key == 'Escape') {
+			document.removeEventListener('keydown', recordKeybindCombination);
+			keybindRecordButton.textContent = 'Record';
+			keybindRecordButton.dataset.recording = 'false';
+
+			return;
+		}
 
 		if (e.ctrlKey) keybindCombination.push('Ctrl');
 		if (e.shiftKey) keybindCombination.push('Shift');
@@ -103,11 +110,11 @@ function createRecordPopup() {
 
 		if (recording == 'false') {
 			document.addEventListener('keydown', recordKeybindCombination);
-			this.textContent = 'Stop';
+			this.textContent = 'Save Keybind';
 			this.dataset.recording = 'true';
 		} else {
 			document.removeEventListener('keydown', recordKeybindCombination);
-			this.textContent = 'Start';
+			this.textContent = 'Record';
 			this.dataset.recording = 'false';
 		}
 	});
@@ -121,7 +128,8 @@ function createRecordPopup() {
 		'p',
 		actionContainer,
 		'action-text',
-		'record-text'
+		'record-text',
+		'No selection'
 	);
 	const actionButton = addElement(
 		'button',
@@ -164,12 +172,88 @@ function createRecordPopup() {
 
 		if (recording == 'false') {
 			document.addEventListener('click', recordAction);
-			this.textContent = 'Stop Selection';
+			this.textContent = 'Save Selection';
 			this.dataset.recording = 'true';
 		} else {
 			document.removeEventListener('click', recordAction);
 			this.textContent = 'Select Element';
 			this.dataset.recording = 'false';
+		}
+	});
+
+	// Save and Cancel
+	const saveContainer = addElement('div', wrapper, 'save-container');
+	const saveButton = addElement(
+		'button',
+		saveContainer,
+		'save-button',
+		'final-button',
+		'Save'
+	);
+	saveButton.addEventListener('click', () => {
+		// Cleanup
+		document.removeEventListener('click', recordAction);
+		document.removeEventListener('keydown', recordKeybindCombination);
+
+		wrapper.remove();
+	});
+
+	const cancelButton = addElement(
+		'button',
+		saveContainer,
+		'cancel-button',
+		'final-button',
+		'Cancel'
+	);
+	cancelButton.addEventListener('click', () => {
+		document.removeEventListener('click', recordAction);
+		document.removeEventListener('keydown', recordKeybindCombination);
+
+		wrapper.remove();
+	});
+
+	// Drag and Move
+	const drag = addElement(
+		'p',
+		wrapper,
+		'keybinder-drag',
+		null,
+		'Hold here to move'
+	);
+
+	drag.addEventListener('pointerdown', (e) => {
+		e.preventDefault();
+		drag.setPointerCapture(e.pointerId);
+	});
+
+	drag.addEventListener('pointermove', (e) => {
+		const wrapperStyles = window.getComputedStyle(wrapper);
+		const wrapperWidth = parseFloat(wrapperStyles.width);
+		const wrapperHeight = parseFloat(wrapperStyles.height);
+
+		// if (
+		// 	parseFloat(wrapperStyles.left) < 10 ||
+		// 	parseFloat(wrapperStyles.top) < 10 ||
+		// 	parseFloat(wrapperStyles.right) < 10 ||
+		// 	parseFloat(wrapperStyles.bottom) < 10
+		// )
+		// 	return;
+
+		// console.log(
+		// 	wrapperStyles.left,
+		// 	wrapperStyles.top,
+		// 	wrapperStyles.right,
+		// 	wrapperStyles.bottom
+		// );
+
+		if (drag.hasPointerCapture(e.pointerId)) {
+			e.preventDefault();
+
+			let x = e.clientX - wrapperWidth / 2;
+			let y = e.clientY - wrapperHeight + 10;
+
+			wrapper.style.left = x + 'px';
+			wrapper.style.top = y + 'px';
 		}
 	});
 
@@ -179,25 +263,38 @@ function createRecordPopup() {
 		container,
 		null,
 		null,
-		`#keybinder-record-container {
+		`#keybinder-record-wrapper {
             position: fixed;
             top: 100px;
-            right: 0;
-            max-width: 480px;
-            height: 160px;
+            right: 15px;
+            max-width: 400px;
             box-shadow: 1px 1px 4px #000;
             background: #424242;
             color: #ffffff;
             border-radius: 6px;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0 4px;
+        }
+
+        #keybinder-record-container {
+            height: 160px;
+            display: flex;
             flex-direction: row;
             justify-content: space-between;
             align-items: start;
-            padding: 12px 0;
+        }
+
+        #keybinder-drag {
+            color: #bdbdbd;
+            margin-top: 4px;
+            font-size: 12px;
+            cursor: grab;
         }
 
         .record-text {
-            font-size: 12px;
+            font-size: 16px;
             color: #ffffff;
             text-align: center
         }
@@ -209,6 +306,11 @@ function createRecordPopup() {
             border-radius: 4px;
             background: #056e64;
             outline: none;
+
+            &[data-recording='true'] {
+                color: #00695C;
+                background: #EEEEEE
+            }
         }
 
         #record-container, #action-container {
@@ -227,7 +329,34 @@ function createRecordPopup() {
         .record-heading {
             font-size: 14px;
             // margin-bottom: 20px;
-        }`
+        }
+        
+        #save-container {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            justify-content: start;
+            align-items: center;
+            margin-top: 16px;
+            padding: 0 16px;
+        }
+
+        .final-button {
+            font-size: 12px;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 6px 8px;
+            border-radius: 6px;
+            outline: none;
+            width: 80px;
+        }
+        #save-button {
+            background: #43A047;
+        }
+        #cancel-button {
+            background: #C62828;
+        }
+        `
 	);
 }
 
@@ -296,8 +425,6 @@ function createSnackbar(text, type = null) {
 if (typeof browser == 'undefined') {
 	chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 		if (msg.action == 'addKeybind') {
-			console.log('creating popup');
-
 			createRecordPopup();
 		}
 
