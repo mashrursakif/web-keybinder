@@ -190,7 +190,31 @@ function createRecordPopup() {
 		'final-button',
 		'Save'
 	);
-	saveButton.addEventListener('click', () => {
+	saveButton.addEventListener('click', async () => {
+		const domain = window.location.hostname;
+
+		const getBinds = await chrome.storage.sync.get({ siteBinds: {} });
+		const siteBinds = getBinds.siteBinds;
+
+		if (!siteBinds[domain]) {
+			siteBinds[domain] = [];
+		}
+
+		if (keybindCombination.length == 0) {
+			createSnackbar('Keybind not set', 'error');
+			return;
+		}
+		if (!actionSelector) {
+			createSnackbar('Element not selected', 'error');
+			return;
+		}
+		siteBinds[domain].push({
+			keybind: keybindCombination,
+			selector: actionSelector,
+		});
+
+		await chrome.storage.sync.set({ siteBinds: siteBinds });
+
 		// Cleanup
 		document.removeEventListener('click', recordAction);
 		document.removeEventListener('keydown', recordKeybindCombination);
@@ -392,7 +416,7 @@ function createSnackbar(text, type = null) {
             left: 40px;
             padding: 12px;
             width: 320px;
-            box-shadow: 1px 1px 4px;
+            box-shadow: 1px 1px 4px #000000;
             border-radius: 4px;
             color: #fff;
             background: #424242;

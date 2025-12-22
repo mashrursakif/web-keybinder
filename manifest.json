@@ -22,5 +22,6 @@
 			"38": "icons/keybinder-38.png"
 		},
 		"default_popup": "popup/popup.html"
-	}
+	},
+	"permissions": ["storage"]
 }
