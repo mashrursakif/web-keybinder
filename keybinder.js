@@ -299,7 +299,7 @@ function createRecordPopup() {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 12px 0 4px;
+            padding: 12px;
         }
 
         #keybinder-record-container {
