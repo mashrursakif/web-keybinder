@@ -55,6 +55,21 @@ function createRecordPopup() {
 
 	const container = addElement('div', wrapper, 'keybinder-record-container');
 
+	// Cancel
+	const cancelButton = addElement(
+		'button',
+		container,
+		'cancel-button',
+		null,
+		'Cancel'
+	);
+	cancelButton.addEventListener('click', () => {
+		document.removeEventListener('click', recordAction);
+		document.removeEventListener('keydown', recordKeybindCombination);
+
+		wrapper.remove();
+	});
+
 	// Record keybind
 
 	const keybindContainer = addElement('div', container, 'record-container');
@@ -64,7 +79,7 @@ function createRecordPopup() {
 		keybindContainer,
 		'keybind-text',
 		'record-text',
-		'No keybind saved'
+		'No keybind'
 	);
 	const keybindRecordButton = addElement(
 		'button',
@@ -75,6 +90,29 @@ function createRecordPopup() {
 	);
 	keybindRecordButton.dataset.recording = 'false';
 
+	// Action
+	var actionSelector;
+
+	const actionContainer = addElement('div', container, 'action-container');
+	addElement('h2', actionContainer, null, 'record-heading', 'Record Action');
+	const actionText = addElement(
+		'p',
+		actionContainer,
+		'action-text',
+		'record-text',
+		'No selection'
+	);
+	const actionButton = addElement(
+		'button',
+		actionContainer,
+		'record-action-button',
+		'record-button',
+		'Select Element'
+	);
+	actionButton.dataset.recording = 'false';
+	actionButton.disabled = true;
+
+	// Listener Functions
 	var keybindCombination = [];
 
 	const recordKeybindCombination = (e) => {
@@ -98,10 +136,20 @@ function createRecordPopup() {
 
 		const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
 		if (!modifiers.includes(e.key)) {
+			// Save and remove listener
 			keybindCombination.push(e.key.toUpperCase());
+			keybindText.textContent = keybindCombination.join(' + ');
+
+			actionButton.disabled = false;
+
+			// Cleanup
+			document.removeEventListener('keydown', recordKeybindCombination);
+			keybindRecordButton.textContent = 'Record';
+			keybindRecordButton.dataset.recording = 'false';
+
+			return;
 		}
 
-		// Show combination recording in UI
 		keybindText.textContent = keybindCombination.join(' + ');
 	};
 
@@ -110,7 +158,7 @@ function createRecordPopup() {
 
 		if (recording == 'false') {
 			document.addEventListener('keydown', recordKeybindCombination);
-			this.textContent = 'Save Keybind';
+			this.textContent = 'Recording';
 			this.dataset.recording = 'true';
 		} else {
 			document.removeEventListener('keydown', recordKeybindCombination);
@@ -119,30 +167,14 @@ function createRecordPopup() {
 		}
 	});
 
-	// Action
-	var actionSelector;
-
-	const actionContainer = addElement('div', container, 'action-container');
-	addElement('h2', actionContainer, null, 'record-heading', 'Record Action');
-	const actionText = addElement(
-		'p',
-		actionContainer,
-		'action-text',
-		'record-text',
-		'No selection'
-	);
-	const actionButton = addElement(
-		'button',
-		actionContainer,
-		'record-action-button',
-		'record-button',
-		'Select Element'
-	);
-	actionButton.dataset.recording = 'false';
-
-	const recordAction = (e) => {
+	const recordAction = async (e) => {
 		e.preventDefault();
 		e.stopPropagation();
+
+		if (keybindCombination.length == 0) {
+			createSnackbar('Keybind not set', 'error');
+			return;
+		}
 
 		// const element = e.composedPath ? e.composedPath() : e.target.element;
 		const element = getClickableElement(e);
@@ -158,6 +190,8 @@ function createRecordPopup() {
 
 		if (actionSelector) {
 			actionText.textContent = 'Selector: ' + actionSelector;
+
+			await saveKeybind();
 		} else {
 			console.log('ERROR NO SELECTORS FOUND');
 			// actionText.textContent = 'Element cannot be selected';
@@ -181,16 +215,48 @@ function createRecordPopup() {
 		}
 	});
 
-	// Save and Cancel
-	const saveContainer = addElement('div', wrapper, 'save-container');
-	const saveButton = addElement(
-		'button',
-		saveContainer,
-		'save-button',
-		'final-button',
-		'Save'
-	);
-	saveButton.addEventListener('click', async () => {
+	// const saveContainer = addElement('div', wrapper, 'save-container');
+	// const saveButton = addElement(
+	// 	'button',
+	// 	saveContainer,
+	// 	'save-button',
+	// 	'final-button',
+	// 	'Save'
+	// );
+	// saveButton.addEventListener('click', async () => {
+	// 	const domain = window.location.hostname;
+
+	// 	const getBinds = await chrome.storage.sync.get({ siteBinds: {} });
+	// 	const siteBinds = getBinds.siteBinds;
+
+	// 	if (!siteBinds[domain]) {
+	// 		siteBinds[domain] = [];
+	// 	}
+
+	// 	if (keybindCombination.length == 0) {
+	// 		createSnackbar('Keybind not set', 'error');
+	// 		return;
+	// 	}
+	// 	if (!actionSelector) {
+	// 		createSnackbar('Element not selected', 'error');
+	// 		return;
+	// 	}
+	// 	siteBinds[domain].push({
+	// 		keybind: keybindCombination,
+	// 		selector: actionSelector,
+	// 	});
+
+	// 	await chrome.storage.sync.set({ siteBinds: siteBinds });
+
+	// 	// Cleanup
+	// 	document.removeEventListener('click', recordAction);
+	// 	document.removeEventListener('keydown', recordKeybindCombination);
+
+	// 	wrapper.remove();
+	// });
+
+	// Save
+	async function saveKeybind() {
 		const domain = window.location.hostname;
 
 		const getBinds = await chrome.storage.sync.get({ siteBinds: {} });
@@ -215,26 +281,17 @@ function createRecordPopup() {
 
 		await chrome.storage.sync.set({ siteBinds: siteBinds });
 
+		createSnackbar(
+			`Saved keybind: ${keybindCombination.join(' + ')} -> ${actionSelector}`,
+			'success'
+		);
+
 		// Cleanup
 		document.removeEventListener('click', recordAction);
 		document.removeEventListener('keydown', recordKeybindCombination);
 
 		wrapper.remove();
-	});
-
-	const cancelButton = addElement(
-		'button',
-		saveContainer,
-		'cancel-button',
-		'final-button',
-		'Cancel'
-	);
-	cancelButton.addEventListener('click', () => {
-		document.removeEventListener('click', recordAction);
-		document.removeEventListener('keydown', recordKeybindCombination);
-
-		wrapper.remove();
-	});
+	}
 
 	// Drag and Move
 	const drag = addElement(
@@ -308,6 +365,8 @@ function createRecordPopup() {
             flex-direction: row;
             justify-content: space-between;
             align-items: start;
+
+            position: relative;
         }
 
         #keybinder-drag {
@@ -334,6 +393,10 @@ function createRecordPopup() {
             &[data-recording='true'] {
                 color: #00695C;
                 background: #EEEEEE
+            }
+
+            &:disabled {
+                background: #616161;
             }
         }
 
@@ -365,19 +428,16 @@ function createRecordPopup() {
             padding: 0 16px;
         }
 
-        .final-button {
+        #cancel-button {
+            position: absolute;
+            top: -4px;
+            right: 10px;
             font-size: 12px;
             color: #ffffff;
-            font-weight: bold;
-            padding: 6px 8px;
+            font-weight: 500;
+            padding: 5px 8px;
             border-radius: 6px;
             outline: none;
-            width: 80px;
-        }
-        #save-button {
-            background: #43A047;
-        }
-        #cancel-button {
             background: #C62828;
         }
         `

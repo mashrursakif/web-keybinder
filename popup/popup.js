@@ -19,23 +19,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 
 		if (res.siteBinds[domain]) currentKeybinds = res.siteBinds[domain];
 
-		// for (let i = 0; i < currentKeybinds.length; i++) {
-		// 	const keybindDetails = currentKeybinds[i];
-
-		// 	const keybindContent = document.createElement('div');
-		// 	keybindContent.className = 'keybind-content';
-		// 	currentContent.append(keybindContent);
-
-		// 	const keybindCombination = document.createElement('p');
-		// 	keybindCombination.className = 'keybind-combination';
-		// 	keybindCombination.textContent = keybindDetails.keybind;
-		// 	keybindContent.appendChild(keybindCombination);
-
-		// 	const keybindSelector = document.createElement('p');
-		// 	keybindSelector.className = 'keybind-selector';
-		// 	keybindSelector.textContent = keybindDetails.selector;
-		// 	keybindContent.appendChild(keybindSelector);
-		// }
 		createCurrentList(currentKeybinds);
 
 		setUpTabs();
@@ -63,6 +46,13 @@ function setUpTabs() {
 }
 
 function createCurrentList(keybinds) {
+	if (keybinds.length == 0) {
+		currentContentMessage.style.display = 'block';
+		currentContentMessage.textContent = 'No keybinds found for this site';
+	} else {
+		currentContentMessage.style.display = 'none';
+	}
+
 	for (let i = 0; i < keybinds.length; i++) {
 		const keybindDetails = currentKeybinds[i];
 
@@ -103,9 +93,6 @@ function createCurrentList(keybinds) {
 			);
 		});
 	}
-
-	if (keybinds.length == 0)
-		currentContentMessage.textContent = 'No keybinds found for this site';
 }
 
 function createAllList(keybinds) {
@@ -149,6 +136,11 @@ async function deleteKeybind(domain, keybinds, selector, htmlID) {
 
 		allBinds[domain] = domainBinds;
 
+		if (domainBinds.length == 0) {
+			currentContentMessage.style.display = 'block';
+			currentContentMessage.textContent = 'No keybinds found for this site';
+		}
+
 		await chrome.storage.sync.set({ siteBinds: allBinds });
 
 		const keybindContainer = document.getElementById(htmlID);
@@ -156,9 +148,6 @@ async function deleteKeybind(domain, keybinds, selector, htmlID) {
 	} else {
 		console.log(`Error: domain '${domain}' not found`);
 	}
-
-	const res2 = await chrome.storage.sync.get({ siteBinds: {} });
-	console.log('FINAL RES', res2);
 }
 
 const addButton = document.querySelector('#add-button');
