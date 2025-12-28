@@ -19,12 +19,13 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 
 		if (res.siteBinds[domain]) currentKeybinds = res.siteBinds[domain];
 
-		createCurrentList(currentKeybinds);
+		createCurrentContent(currentKeybinds);
 
 		setUpTabs();
 	});
 });
 
+let allContentLoaded = false;
 function setUpTabs() {
 	const tabCurrent = document.querySelector('#tab-current');
 	const tabAll = document.querySelector('#tab-all');
@@ -37,6 +38,11 @@ function setUpTabs() {
 		currentContent.style.display = 'block';
 	});
 	tabAll.addEventListener('click', function () {
+		if (!allContentLoaded) {
+			createAllContent(allKeybinds);
+			allContentLoaded = true;
+		}
+
 		tabCurrent.dataset.active = 'false';
 		currentContent.style.display = 'none';
 
@@ -45,7 +51,7 @@ function setUpTabs() {
 	});
 }
 
-function createCurrentList(keybinds) {
+function createCurrentContent(keybinds) {
 	if (keybinds.length == 0) {
 		currentContentMessage.style.display = 'block';
 		currentContentMessage.textContent = 'No keybinds found for this site';
@@ -53,13 +59,42 @@ function createCurrentList(keybinds) {
 		currentContentMessage.style.display = 'none';
 	}
 
+	createKeybindList(keybinds);
+}
+
+function createAllContent(allKeybinds) {
+	const sites = Object.keys(allKeybinds);
+
+	sites.map((site) => {
+		const siteBinds = allKeybinds[site];
+
+		if (siteBinds.length == 0) return;
+
+		const keybindSiteContainer = document.createElement('div');
+		keybindSiteContainer.id = `keybind-site-${site}`;
+		keybindSiteContainer.className = 'keybind-site';
+		allContent.append(keybindSiteContainer);
+
+		const keybindSiteTitle = document.createElement('h2');
+		keybindSiteTitle.className = 'keybind-site-title';
+		keybindSiteTitle.textContent = site;
+		keybindSiteContainer.append(keybindSiteTitle);
+
+		createKeybindList(siteBinds, keybindSiteContainer);
+	});
+
+	if (allKeybinds.length == 0)
+		allContentMessage.textContent = 'No keybinds found';
+}
+
+function createKeybindList(keybinds, parent = currentContent) {
 	for (let i = 0; i < keybinds.length; i++) {
-		const keybindDetails = currentKeybinds[i];
+		const keybindDetails = keybinds[i];
 
 		const keybindContent = document.createElement('div');
 		keybindContent.id = `keybind-content-${i}`;
 		keybindContent.className = 'keybind-content';
-		currentContent.append(keybindContent);
+		parent.append(keybindContent);
 
 		const keybindCombination = document.createElement('p');
 		keybindCombination.className = 'keybind-combination';
@@ -93,29 +128,6 @@ function createCurrentList(keybinds) {
 			);
 		});
 	}
-}
-
-function createAllList(keybinds) {
-	for (let i = 0; i < keybinds.length; i++) {
-		const keybindDetails = currentKeybinds[i];
-
-		const keybindContent = document.createElement('div');
-		keybindContent.id = `keybind-content-${i}`;
-		keybindContent.className = 'keybind-content';
-		currentContent.append(keybindContent);
-
-		const keybindCombination = document.createElement('p');
-		keybindCombination.className = 'keybind-combination';
-		keybindCombination.textContent = keybindDetails.keybind;
-		keybindContent.appendChild(keybindCombination);
-
-		const keybindSelector = document.createElement('p');
-		keybindSelector.className = 'keybind-selector';
-		keybindSelector.textContent = keybindDetails.selector;
-		keybindContent.appendChild(keybindSelector);
-	}
-
-	if (keybinds.length == 0) allContentMessage.textContent = 'No keybinds found';
 }
 
 async function deleteKeybind(domain, keybinds, selector, htmlID) {

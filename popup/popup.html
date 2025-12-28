@@ -103,12 +103,14 @@
 				color: #ffffff;
 				/* font-weight: bold; */
 				border: none;
+				border-bottom: 2px solid;
+				border-color: transparent;
 				padding: 4px 8px;
 				background: transparent;
 				outline: none;
 
 				&[data-active='true'] {
-					border-bottom: 2px solid #056e64;
+					border-color: #056e64;
 				}
 			}
 		}
@@ -128,6 +130,12 @@
 				font-size: 14px;
 				margin: 0;
 			}
+		}
+
+		.keybind-site-title {
+			margin: 12px 10px;
+			font-size: 18px;
+			font-weight: bold;
 		}
 
 		.keybind-content {
