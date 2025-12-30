@@ -31,6 +31,8 @@ function setUpTabs() {
 	const tabAll = document.querySelector('#tab-all');
 
 	tabCurrent.addEventListener('click', function () {
+		createCurrentContent(currentKeybinds);
+
 		tabAll.dataset.active = 'false';
 		allContent.style.display = 'none';
 
@@ -40,7 +42,7 @@ function setUpTabs() {
 	tabAll.addEventListener('click', function () {
 		if (!allContentLoaded) {
 			createAllContent(allKeybinds);
-			allContentLoaded = true;
+			// allContentLoaded = true;
 		}
 
 		tabCurrent.dataset.active = 'false';
@@ -52,6 +54,14 @@ function setUpTabs() {
 }
 
 function createCurrentContent(keybinds) {
+	const prevCurrentContentWrapper = document.querySelector(
+		'#current-content-wrapper'
+	);
+	if (prevCurrentContentWrapper) prevCurrentContentWrapper.remove();
+	const currentContentWrapper = document.createElement('div');
+	currentContentWrapper.id = 'current-content-wrapper';
+	currentContent.appendChild(currentContentWrapper);
+
 	if (keybinds.length == 0) {
 		currentContentMessage.style.display = 'block';
 		currentContentMessage.textContent = 'No keybinds found for this site';
@@ -59,11 +69,17 @@ function createCurrentContent(keybinds) {
 		currentContentMessage.style.display = 'none';
 	}
 
-	createKeybindList(keybinds);
+	createKeybindList(keybinds, currentContentWrapper);
 }
 
 function createAllContent(allKeybinds) {
 	const sites = Object.keys(allKeybinds);
+
+	const prevAllContentWrapper = document.querySelector('#all-content-wrapper');
+	if (prevAllContentWrapper) prevAllContentWrapper.remove();
+	const allContentWrapper = document.createElement('div');
+	allContentWrapper.id = 'all-content-wrapper';
+	allContent.appendChild(allContentWrapper);
 
 	sites.map((site) => {
 		const siteBinds = allKeybinds[site];
@@ -73,21 +89,21 @@ function createAllContent(allKeybinds) {
 		const keybindSiteContainer = document.createElement('div');
 		keybindSiteContainer.id = `keybind-site-${site}`;
 		keybindSiteContainer.className = 'keybind-site';
-		allContent.append(keybindSiteContainer);
+		allContentWrapper.append(keybindSiteContainer);
 
 		const keybindSiteTitle = document.createElement('h2');
 		keybindSiteTitle.className = 'keybind-site-title';
 		keybindSiteTitle.textContent = site;
 		keybindSiteContainer.append(keybindSiteTitle);
 
-		createKeybindList(siteBinds, keybindSiteContainer);
+		createKeybindList(siteBinds, keybindSiteContainer, site);
 	});
 
 	if (allKeybinds.length == 0)
 		allContentMessage.textContent = 'No keybinds found';
 }
 
-function createKeybindList(keybinds, parent = currentContent) {
+function createKeybindList(keybinds, parent, site = domain) {
 	for (let i = 0; i < keybinds.length; i++) {
 		const keybindDetails = keybinds[i];
 
@@ -98,7 +114,7 @@ function createKeybindList(keybinds, parent = currentContent) {
 
 		const keybindCombination = document.createElement('p');
 		keybindCombination.className = 'keybind-combination';
-		const keyBindTextContent = keybindDetails.keybind.join(' + ');
+		const keyBindTextContent = keybindDetails.keybind;
 		keybindCombination.textContent = keyBindTextContent;
 		keybindContent.appendChild(keybindCombination);
 
@@ -121,7 +137,7 @@ function createKeybindList(keybinds, parent = currentContent) {
 
 		deleteButton.addEventListener('click', () => {
 			deleteKeybind(
-				domain,
+				site,
 				keyBindTextContent,
 				keybindDetails.selector,
 				`keybind-content-${i}`
@@ -130,23 +146,21 @@ function createKeybindList(keybinds, parent = currentContent) {
 	}
 }
 
-async function deleteKeybind(domain, keybinds, selector, htmlID) {
+async function deleteKeybind(site, keybind, selector, htmlID) {
 	const res = await chrome.storage.sync.get({ siteBinds: {} });
 	const allBinds = res.siteBinds;
-	if (allBinds[domain]) {
-		const domainBinds = allBinds[domain];
+	if (allBinds[site]) {
+		const domainBinds = allBinds[site];
 
 		for (let i = 0; i < domainBinds.length; i++) {
 			const bind = domainBinds[i];
-			if (
-				bind['keybind'].join(' + ') == keybinds &&
-				bind['selector'] == selector
-			) {
+
+			if (bind['keybind'] == keybind && bind['selector'] == selector) {
 				domainBinds.splice(i, 1);
 			}
 		}
 
-		allBinds[domain] = domainBinds;
+		allBinds[site] = domainBinds;
 
 		if (domainBinds.length == 0) {
 			currentContentMessage.style.display = 'block';
@@ -155,10 +169,21 @@ async function deleteKeybind(domain, keybinds, selector, htmlID) {
 
 		await chrome.storage.sync.set({ siteBinds: allBinds });
 
+		currentKeybinds = domainBinds;
+		allKeybinds = allBinds;
+
+		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			chrome.tabs.sendMessage(tabs[0].id, {
+				action: 'removeListener',
+				keybind,
+				selector,
+			});
+		});
+
 		const keybindContainer = document.getElementById(htmlID);
 		keybindContainer.remove();
 	} else {
-		console.log(`Error: domain '${domain}' not found`);
+		console.log(`Error: domain '${site}' not found`);
 	}
 }
 

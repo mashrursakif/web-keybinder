@@ -1,3 +1,5 @@
+var activeSiteBinds = [];
+
 function addElement(
 	tag,
 	parent = document.body,
@@ -37,8 +39,8 @@ function getClickableElement(event) {
 // Returns CSS selector
 function getSelector(element) {
 	if (element.id) return `#${element.id}`;
-	if (element.ariaLabel) return `aria-label=[${element.ariaLabel}]`;
-	if (element.name) return `name=[${element.name}]`;
+	if (element.ariaLabel) return `[aria-label="${element.ariaLabel}"]`;
+	if (element.name) return `[name="${element.name}"]`;
 
 	return null;
 }
@@ -275,11 +277,13 @@ function createRecordPopup() {
 			return;
 		}
 		siteBinds[domain].push({
-			keybind: keybindCombination,
+			keybind: keybindCombination.join(' + '),
 			selector: actionSelector,
 		});
 
 		await chrome.storage.sync.set({ siteBinds: siteBinds });
+
+		activeSiteBinds = siteBinds[domain];
 
 		createSnackbar(
 			`Saved keybind: ${keybindCombination.join(' + ')} -> ${actionSelector}`,
@@ -507,9 +511,61 @@ function createSnackbar(text, type = null) {
 }
 
 if (typeof browser == 'undefined') {
+	const domain = window.location.hostname;
+
+	// Initialize keybind listener
+
+	chrome.storage.sync.get({ siteBinds: {} }, (result) => {
+		if (result.siteBinds[domain]) {
+			activeSiteBinds = result.siteBinds[domain];
+
+			if (!activeSiteBinds.length) return;
+
+			document.addEventListener('keydown', (e) => {
+				console.log('active binds', activeSiteBinds);
+
+				const inputCombination = [];
+
+				if (e.ctrlKey) inputCombination.push('Ctrl');
+				if (e.shiftKey) inputCombination.push('Shift');
+				if (e.altKey) inputCombination.push('Alt');
+				// if (e.metaKey) combination.push('Super');
+
+				const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
+				if (!modifiers.includes(e.key)) {
+					// Save and remove listener
+					inputCombination.push(e.key.toUpperCase());
+
+					const inputKeys = inputCombination.join(' + ');
+					console.log(inputKeys);
+
+					for (const keybind of activeSiteBinds) {
+						if (inputKeys == keybind.keybind) {
+							console.log(keybind.selector);
+
+							const element = document.querySelector(keybind.selector);
+							element.click();
+						}
+					}
+				}
+			});
+		}
+	});
+
+	// Listeners for Adding and Deleting Keybinds
 	chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 		if (msg.action == 'addKeybind') {
 			createRecordPopup();
+		} else if (msg.action == 'removeListener') {
+			for (let i = 0; i < activeSiteBinds.length; i++) {
+				const bind = activeSiteBinds[i];
+				if (
+					bind['keybind'] == msg.keybind &&
+					bind['selector'] == msg.selector
+				) {
+					activeSiteBinds.splice(i, 1);
+				}
+			}
 		}
 
 		// sendResponse({ status: 'success' });
