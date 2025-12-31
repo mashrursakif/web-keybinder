@@ -25,12 +25,16 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 	});
 });
 
-let allContentLoaded = false;
 function setUpTabs() {
 	const tabCurrent = document.querySelector('#tab-current');
 	const tabAll = document.querySelector('#tab-all');
 
 	tabCurrent.addEventListener('click', function () {
+		const prevAllContentWrapper = document.querySelector(
+			'#all-content-wrapper'
+		);
+		if (prevAllContentWrapper) prevAllContentWrapper.remove();
+
 		createCurrentContent(currentKeybinds);
 
 		tabAll.dataset.active = 'false';
@@ -40,10 +44,12 @@ function setUpTabs() {
 		currentContent.style.display = 'block';
 	});
 	tabAll.addEventListener('click', function () {
-		if (!allContentLoaded) {
-			createAllContent(allKeybinds);
-			// allContentLoaded = true;
-		}
+		const prevCurrentContentWrapper = document.querySelector(
+			'#current-content-wrapper'
+		);
+		if (prevCurrentContentWrapper) prevCurrentContentWrapper.remove();
+
+		createAllContent(allKeybinds);
 
 		tabCurrent.dataset.active = 'false';
 		currentContent.style.display = 'none';
@@ -54,10 +60,6 @@ function setUpTabs() {
 }
 
 function createCurrentContent(keybinds) {
-	const prevCurrentContentWrapper = document.querySelector(
-		'#current-content-wrapper'
-	);
-	if (prevCurrentContentWrapper) prevCurrentContentWrapper.remove();
 	const currentContentWrapper = document.createElement('div');
 	currentContentWrapper.id = 'current-content-wrapper';
 	currentContent.appendChild(currentContentWrapper);
@@ -75,11 +77,16 @@ function createCurrentContent(keybinds) {
 function createAllContent(allKeybinds) {
 	const sites = Object.keys(allKeybinds);
 
-	const prevAllContentWrapper = document.querySelector('#all-content-wrapper');
-	if (prevAllContentWrapper) prevAllContentWrapper.remove();
 	const allContentWrapper = document.createElement('div');
 	allContentWrapper.id = 'all-content-wrapper';
 	allContent.appendChild(allContentWrapper);
+
+	if (Object.keys(allKeybinds).length == 0) {
+		allContentMessage.style.display = 'block';
+		allContentMessage.textContent = 'No keybinds found';
+	} else {
+		allContentMessage.style.display = 'none';
+	}
 
 	sites.map((site) => {
 		const siteBinds = allKeybinds[site];
@@ -107,8 +114,10 @@ function createKeybindList(keybinds, parent, site = domain) {
 	for (let i = 0; i < keybinds.length; i++) {
 		const keybindDetails = keybinds[i];
 
+		const htmlID = `keybind-content-${site}-${i}`;
+
 		const keybindContent = document.createElement('div');
-		keybindContent.id = `keybind-content-${i}`;
+		keybindContent.id = htmlID;
 		keybindContent.className = 'keybind-content';
 		parent.append(keybindContent);
 
@@ -136,12 +145,7 @@ function createKeybindList(keybinds, parent, site = domain) {
 		keybindContent.appendChild(deleteButton);
 
 		deleteButton.addEventListener('click', () => {
-			deleteKeybind(
-				site,
-				keyBindTextContent,
-				keybindDetails.selector,
-				`keybind-content-${i}`
-			);
+			deleteKeybind(site, keyBindTextContent, keybindDetails.selector, htmlID);
 		});
 	}
 }
@@ -163,13 +167,17 @@ async function deleteKeybind(site, keybind, selector, htmlID) {
 		allBinds[site] = domainBinds;
 
 		if (domainBinds.length == 0) {
-			currentContentMessage.style.display = 'block';
-			currentContentMessage.textContent = 'No keybinds found for this site';
+			delete allBinds[site];
+
+			if (site == domain) {
+				currentContentMessage.style.display = 'block';
+				currentContentMessage.textContent = 'No keybinds found for this site';
+			}
 		}
 
 		await chrome.storage.sync.set({ siteBinds: allBinds });
 
-		currentKeybinds = domainBinds;
+		if (site == domain) currentKeybinds = domainBinds;
 		allKeybinds = allBinds;
 
 		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -189,14 +197,9 @@ async function deleteKeybind(site, keybind, selector, htmlID) {
 
 const addButton = document.querySelector('#add-button');
 addButton.addEventListener('click', () => {
-	if (typeof browser == 'undefined') {
-		// Chrome
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			chrome.tabs.sendMessage(tabs[0].id, { action: 'addKeybind' }, () => {
-				window.close();
-			});
+	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+		chrome.tabs.sendMessage(tabs[0].id, { action: 'addKeybind' }, () => {
+			window.close();
 		});
-	} else {
-		// Firefox
-	}
+	});
 });

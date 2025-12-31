@@ -54,8 +54,13 @@ function createRecordPopup() {
 	// con.id = 'keybinder-record-container';
 
 	const wrapper = addElement('div', document.body, 'keybinder-record-wrapper');
+	const wrapperShadow = wrapper.attachShadow({ mode: 'open' });
 
-	const container = addElement('div', wrapper, 'keybinder-record-container');
+	const container = addElement(
+		'div',
+		wrapperShadow,
+		'keybinder-record-container'
+	);
 
 	// Cancel
 	const cancelButton = addElement(
@@ -182,7 +187,7 @@ function createRecordPopup() {
 		const element = getClickableElement(e);
 
 		if (!element) {
-			console.log('ELEMENT IS NOT CLICKABLE');
+			console.error('ELEMENT IS NOT CLICKABLE');
 			// actionText.textContent = 'Element is not clickable';
 			createSnackbar('Element is not clickable', 'error');
 			return;
@@ -195,7 +200,7 @@ function createRecordPopup() {
 
 			await saveKeybind();
 		} else {
-			console.log('ERROR NO SELECTORS FOUND');
+			console.error('ERROR NO SELECTORS FOUND');
 			// actionText.textContent = 'Element cannot be selected';
 			createSnackbar('Element cannot be selected', 'error');
 		}
@@ -216,46 +221,6 @@ function createRecordPopup() {
 			this.dataset.recording = 'false';
 		}
 	});
-
-	// const saveContainer = addElement('div', wrapper, 'save-container');
-	// const saveButton = addElement(
-	// 	'button',
-	// 	saveContainer,
-	// 	'save-button',
-	// 	'final-button',
-	// 	'Save'
-	// );
-	// saveButton.addEventListener('click', async () => {
-	// 	const domain = window.location.hostname;
-
-	// 	const getBinds = await chrome.storage.sync.get({ siteBinds: {} });
-	// 	const siteBinds = getBinds.siteBinds;
-
-	// 	if (!siteBinds[domain]) {
-	// 		siteBinds[domain] = [];
-	// 	}
-
-	// 	if (keybindCombination.length == 0) {
-	// 		createSnackbar('Keybind not set', 'error');
-	// 		return;
-	// 	}
-	// 	if (!actionSelector) {
-	// 		createSnackbar('Element not selected', 'error');
-	// 		return;
-	// 	}
-	// 	siteBinds[domain].push({
-	// 		keybind: keybindCombination,
-	// 		selector: actionSelector,
-	// 	});
-
-	// 	await chrome.storage.sync.set({ siteBinds: siteBinds });
-
-	// 	// Cleanup
-	// 	document.removeEventListener('click', recordAction);
-	// 	document.removeEventListener('keydown', recordKeybindCombination);
-
-	// 	wrapper.remove();
-	// });
 
 	// Save
 	async function saveKeybind() {
@@ -300,7 +265,7 @@ function createRecordPopup() {
 	// Drag and Move
 	const drag = addElement(
 		'p',
-		wrapper,
+		wrapperShadow,
 		'keybinder-drag',
 		null,
 		'Hold here to move'
@@ -345,10 +310,30 @@ function createRecordPopup() {
 	// Styles
 	const styles = addElement(
 		'style',
-		container,
+		wrapperShadow,
 		null,
 		null,
-		`#keybinder-record-wrapper {
+		`
+        :host {
+            all: initial;
+            background: red;
+            position: fixed;
+            top: 100px;
+            right: 15px;
+            width: 400px;
+            max-width: 400px;
+            box-shadow: 1px 1px 4px #000;
+            background: #424242;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+
+            font-family: "Helvetica","Arial","sans-serif"
+        }
+        #keybinder-record-wrapper {
             position: fixed;
             top: 100px;
             right: 15px;
@@ -364,6 +349,7 @@ function createRecordPopup() {
         }
 
         #keybinder-record-container {
+            width: 100%;
             height: 160px;
             display: flex;
             flex-direction: row;
@@ -434,7 +420,7 @@ function createRecordPopup() {
 
         #cancel-button {
             position: absolute;
-            top: -4px;
+            top: 8px;
             right: 10px;
             font-size: 12px;
             color: #ffffff;
@@ -443,6 +429,11 @@ function createRecordPopup() {
             border-radius: 6px;
             outline: none;
             background: #C62828;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
         }
         `
 	);
@@ -484,7 +475,8 @@ function createSnackbar(text, type = null) {
             border-radius: 4px;
             color: #fff;
             background: #424242;
-            
+            z-index: 9999999;
+                        
             &.error {
                 background: #C62828;
             }
@@ -510,64 +502,54 @@ function createSnackbar(text, type = null) {
 	}, 5000);
 }
 
-if (typeof browser == 'undefined') {
-	const domain = window.location.hostname;
+const domain = window.location.hostname;
 
-	// Initialize keybind listener
+// Initialize keybind listener
 
-	chrome.storage.sync.get({ siteBinds: {} }, (result) => {
-		if (result.siteBinds[domain]) {
-			activeSiteBinds = result.siteBinds[domain];
+chrome.storage.sync.get({ siteBinds: {} }, (result) => {
+	if (result.siteBinds[domain]) {
+		activeSiteBinds = result.siteBinds[domain];
 
-			if (!activeSiteBinds.length) return;
+		if (!activeSiteBinds.length) return;
 
-			document.addEventListener('keydown', (e) => {
-				console.log('active binds', activeSiteBinds);
+		document.addEventListener('keydown', (e) => {
+			const inputCombination = [];
 
-				const inputCombination = [];
+			if (e.ctrlKey) inputCombination.push('Ctrl');
+			if (e.shiftKey) inputCombination.push('Shift');
+			if (e.altKey) inputCombination.push('Alt');
+			// if (e.metaKey) combination.push('Super');
 
-				if (e.ctrlKey) inputCombination.push('Ctrl');
-				if (e.shiftKey) inputCombination.push('Shift');
-				if (e.altKey) inputCombination.push('Alt');
-				// if (e.metaKey) combination.push('Super');
+			const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
+			if (!modifiers.includes(e.key)) {
+				// Save and remove listener
+				inputCombination.push(e.key.toUpperCase());
 
-				const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
-				if (!modifiers.includes(e.key)) {
-					// Save and remove listener
-					inputCombination.push(e.key.toUpperCase());
+				const inputKeys = inputCombination.join(' + ');
 
-					const inputKeys = inputCombination.join(' + ');
-					console.log(inputKeys);
-
-					for (const keybind of activeSiteBinds) {
-						if (inputKeys == keybind.keybind) {
-							console.log(keybind.selector);
-
-							const element = document.querySelector(keybind.selector);
-							element.click();
-						}
+				for (const keybind of activeSiteBinds) {
+					if (inputKeys == keybind.keybind) {
+						const element = document.querySelector(keybind.selector);
+						element.click();
 					}
 				}
-			});
-		}
-	});
+			}
+		});
+	}
+});
 
-	// Listeners for Adding and Deleting Keybinds
-	chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-		if (msg.action == 'addKeybind') {
-			createRecordPopup();
-		} else if (msg.action == 'removeListener') {
-			for (let i = 0; i < activeSiteBinds.length; i++) {
-				const bind = activeSiteBinds[i];
-				if (
-					bind['keybind'] == msg.keybind &&
-					bind['selector'] == msg.selector
-				) {
-					activeSiteBinds.splice(i, 1);
-				}
+// Listeners for Adding and Deleting Keybinds
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+	if (msg.action == 'addKeybind') {
+		createRecordPopup();
+	} else if (msg.action == 'removeListener') {
+		for (let i = 0; i < activeSiteBinds.length; i++) {
+			const bind = activeSiteBinds[i];
+			if (bind['keybind'] == msg.keybind && bind['selector'] == msg.selector) {
+				activeSiteBinds.splice(i, 1);
 			}
 		}
+	}
 
-		// sendResponse({ status: 'success' });
-	});
-}
+	// sendResponse({ status: 'success' });
+});
