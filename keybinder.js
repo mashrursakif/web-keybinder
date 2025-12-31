@@ -507,35 +507,31 @@ const domain = window.location.hostname;
 // Initialize keybind listener
 
 chrome.storage.sync.get({ siteBinds: {} }, (result) => {
-	if (result.siteBinds[domain]) {
-		activeSiteBinds = result.siteBinds[domain];
+	if (result.siteBinds[domain]) activeSiteBinds = result.siteBinds[domain];
 
-		if (!activeSiteBinds.length) return;
+	document.addEventListener('keydown', (e) => {
+		const inputCombination = [];
 
-		document.addEventListener('keydown', (e) => {
-			const inputCombination = [];
+		if (e.ctrlKey) inputCombination.push('Ctrl');
+		if (e.shiftKey) inputCombination.push('Shift');
+		if (e.altKey) inputCombination.push('Alt');
+		// if (e.metaKey) combination.push('Super');
 
-			if (e.ctrlKey) inputCombination.push('Ctrl');
-			if (e.shiftKey) inputCombination.push('Shift');
-			if (e.altKey) inputCombination.push('Alt');
-			// if (e.metaKey) combination.push('Super');
+		const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
+		if (!modifiers.includes(e.key)) {
+			// Save and remove listener
+			inputCombination.push(e.key.toUpperCase());
 
-			const modifiers = ['Control', 'Shift', 'Alt', 'Super'];
-			if (!modifiers.includes(e.key)) {
-				// Save and remove listener
-				inputCombination.push(e.key.toUpperCase());
+			const inputKeys = inputCombination.join(' + ');
 
-				const inputKeys = inputCombination.join(' + ');
-
-				for (const keybind of activeSiteBinds) {
-					if (inputKeys == keybind.keybind) {
-						const element = document.querySelector(keybind.selector);
-						element.click();
-					}
+			for (const keybind of activeSiteBinds) {
+				if (inputKeys == keybind.keybind) {
+					const element = document.querySelector(keybind.selector);
+					element.click();
 				}
 			}
-		});
-	}
+		}
+	});
 });
 
 // Listeners for Adding and Deleting Keybinds
